@@ -1,7 +1,7 @@
+use std::fs::File;
+use std::io::Write;
 use std::sync::{Arc, Mutex};
 use std::thread;
-use std::io::Write;
-use std::fs::File;
 
 fn is_prime(n: u64) -> bool {
     if n % 3 == 0 {
@@ -54,7 +54,7 @@ fn main() {
     // Add 2 to the sum of primes. 2 is the only even prime.
     let counter = Arc::new(Mutex::new(Counter::new()));
     let num_primes = Arc::new(Mutex::new(2));
-    let sum_primes = Arc::new(Mutex::new(2+3));
+    let sum_primes = Arc::new(Mutex::new(2 + 3));
     let largest_primes = Arc::new(Mutex::new(vec![0; 10]));
 
     for _ in 0..nthreads {
@@ -118,11 +118,13 @@ fn main() {
 
     let num = num_primes.lock().unwrap();
     let sum = sum_primes.lock().unwrap();
-    file.write_all(format!("{} {} {}\n", duration.as_secs_f64(), *num, *sum).as_bytes()).unwrap();
+    file.write_all(format!("{} {} {}\n", duration.as_secs_f64(), *num, *sum).as_bytes())
+        .unwrap();
 
     let largest = largest_primes.lock().unwrap();
     for i in 0..largest.len() {
-        file.write_all(format!("{} ", largest[i]).as_bytes()).unwrap();
+        file.write_all(format!("{} ", largest[i]).as_bytes())
+            .unwrap();
     }
     file.write_all(b"\n").unwrap();
 }
