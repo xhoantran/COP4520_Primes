@@ -20,7 +20,7 @@ fn is_prime(n: u64) -> bool {
 
 struct Counter {
     val: u64,
-    next_increment: u64,
+    next_increment: u8,
 }
 
 impl Counter {
@@ -32,17 +32,13 @@ impl Counter {
     }
 
     fn increment(&mut self) {
-        self.val += self.next_increment;
+        self.val += self.next_increment as u64;
         self.next_increment = 6 - self.next_increment;
     }
 }
 
 fn main() {
-    // Get the number of threads to use.
-    let args: Vec<String> = std::env::args().collect();
-    let nthreads = args[1].parse::<u64>().unwrap();
-
-    // Range of numbers to check for primality.
+    let nthreads = 3;
     let n = 100000000;
 
     // Start the timer.
@@ -60,12 +56,17 @@ fn main() {
     for _ in 0..nthreads {
         // Clone-protected mutexes.
         let counter = counter.clone();
-        let num_primes = num_primes.clone();
+        let num_primes: Arc<Mutex<u32>> = num_primes.clone();
         let sum_primes = sum_primes.clone();
         let largest_primes = largest_primes.clone();
 
         // Spawn a thread to find primes.
         let handle = thread::spawn(move || {
+            // Thread local variables.
+            let mut thread_count_primes = 0;
+            let mut thread_sum_primes = 0;
+            let mut thread_largest_primes = vec![0; 10];
+            let mut thread_largest_primes_index = 0;
             loop {
                 // Safely increment the counter. Create a new variable val
                 // to avoid holding the lock
@@ -76,27 +77,47 @@ fn main() {
 
                 // If val is greater than n, stop the thread.
                 if val > n {
+                    // Aquire the lock and update the global variables.
+                    let mut num = num_primes.lock().unwrap();
+                    *num += thread_count_primes;
+                    std::mem::drop(num);
+                    let mut sum = sum_primes.lock().unwrap();
+                    *sum += thread_sum_primes;
+                    std::mem::drop(sum);
+
+                    // Move the index to the largest prime in the thread.
+                    if thread_largest_primes_index == 0 {
+                        thread_largest_primes_index = 9;
+                    } else {
+                        thread_largest_primes_index -= 1;
+                    }
+
+                    let mut largest = largest_primes.lock().unwrap();
+                    for i in 0..largest.len() {
+                        // If the current largest prime is less than the
+                        // smallest prime in the thread, replace it.
+                        if largest[i] < thread_largest_primes[thread_largest_primes_index] {
+                            largest[i] = thread_largest_primes[thread_largest_primes_index];
+                            if thread_largest_primes_index == 0 {
+                                thread_largest_primes_index = 9;
+                            } else {
+                                thread_largest_primes_index -= 1;
+                            }
+                        }
+                    }
+                    largest.sort();
+                    std::mem::drop(largest);
                     break;
                 }
 
                 if is_prime(val) {
-                    // Safely increment the number of primes found.
-                    let mut num = num_primes.lock().unwrap();
-                    *num += 1;
-                    std::mem::drop(num);
-
-                    // Safely increment the sum of primes.
-                    let mut sum = sum_primes.lock().unwrap();
-                    *sum += val;
-                    std::mem::drop(sum);
-
-                    // Safely update the largest primes.
-                    let mut largest = largest_primes.lock().unwrap();
-                    if val > largest[0] {
-                        largest[0] = val;
-                        largest.sort();
+                    thread_count_primes += 1;
+                    thread_sum_primes += val;
+                    thread_largest_primes[thread_largest_primes_index] = val;
+                    thread_largest_primes_index += 1;
+                    if thread_largest_primes_index == 10 {
+                        thread_largest_primes_index = 0;
                     }
-                    std::mem::drop(largest);
                 }
             }
         });

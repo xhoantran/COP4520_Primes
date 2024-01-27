@@ -9,8 +9,8 @@ This program finds all prime numbers up to `10^8`. This program is meant to be a
 ```bash
 git clone https://github.com/xhoantran/COP4520_Primes
 cd COP4520_Primes
-rustc -O -o primes src/main.rs
-./primes <number of threads>
+cargo build --release
+cargo run --release
 ```
 
 ## Proof of Correctness
@@ -21,7 +21,7 @@ The program checks if a number is prime by checking if it is divisible by any nu
 
 ### Dynamic Load Balancing
 
-The program uses dynamic load balancing to distribute the work of checking if a number is prime. Each thread acquires a number to check from a mutex. The mutex is locked when a thread is spawned and unlocked as soon as the thread acquires a number to check. This ensures that each thread gets a unique number to check. The sum and count of prime numbers are also protected by a mutex. This ensures that the sum and count are updated correctly.
+The program uses dynamic load balancing to distribute the work of checking if a number is prime. Each thread acquires a number to check from the counter mutex. The counter mutex is locked when a thread get the value and unlocked as soon as the thread acquires a number to check. This ensures that each thread gets a unique number to check. The sum and count of prime numbers are thead-local variables. This ensures that the threads do not have to wait for each other to update the sum and count of prime numbers. After the threads are done checking if a number is prime, the threads update the sum and count of prime numbers by acquiring the sum and count mutex.
 
 ## Efficiency
 
